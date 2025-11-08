@@ -69,9 +69,7 @@ def prepare_inputs(messages,
         'messages': [
             {
                 'role': 'system',
-                'content': [
-                    meta_prompt
-                ]
+                'content': meta_prompt
             },
             {
                 'role': 'user',
