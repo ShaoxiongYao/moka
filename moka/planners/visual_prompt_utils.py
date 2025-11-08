@@ -393,6 +393,30 @@ def annotate_candidate_keypoints(
     plt.close(fig)
     return Image.open(buf)
 
+def annotate_candidate_keypoints_try_fix(image, candidate_keypoints):
+    from PIL import ImageDraw
+    
+    # Work on a copy
+    annotated = image.copy()
+    draw = ImageDraw.Draw(annotated)
+    
+    def draw_keypoints(keypoints, color, prefix):
+        for i, kp in enumerate(keypoints):
+            x, y = kp[0], kp[1]
+            # Draw circle
+            r = 5
+            draw.ellipse([x-r, y-r, x+r, y+r], outline=color, width=2)
+            # Draw text
+            draw.text((x+10, y-10), f"{prefix}{i+1}", fill=color)
+    
+    if candidate_keypoints['grasped'] is not None:
+        draw_keypoints(candidate_keypoints['grasped'], 'red', 'P')
+    
+    if candidate_keypoints['unattached'] is not None:
+        draw_keypoints(candidate_keypoints['unattached'], 'blue', 'Q')
+    
+    return annotated
+
 
 def annotate_grid(image, grid_size):
     fig, ax = plt.subplots(1, 1)
