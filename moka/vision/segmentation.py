@@ -1,4 +1,4 @@
-from segment_anything import build_sam, SamPredictor
+# from segment_anything import build_sam, SamPredictor
 from groundingdino.util import box_ops
 from groundingdino.util.slconfig import SLConfig
 from groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
@@ -7,7 +7,8 @@ import os
 import groundingdino.datasets.transforms as T
 from PIL import Image
 import torch
-from detectron2.utils.visualizer import GenericMask
+# from detectron2.utils.visualizer import GenericMask
+from .det_tmp import GenericMask
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple, List
