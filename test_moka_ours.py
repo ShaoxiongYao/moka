@@ -48,15 +48,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='./config/moka.yaml')
     parser.add_argument('--color_img_path', type=str, 
-                        default='/home/ydu/haowen/real2sim/data/1107_pivot_0/camera1_rgb.png')
+                        default='/home/ydu/haowen/real2sim/data/1108_pivot_moka_0/camera1_rgb.png')
     parser.add_argument('--depth_img_path', type=str, 
-                        default='/home/ydu/haowen/real2sim/data/1107_pivot_0/camera1_depth.npy')
+                        default='/home/ydu/haowen/real2sim/data/1108_pivot_moka_0/camera1_depth.npy')
     parser.add_argument('--task_instruction', type=str, 
                         # default='Push the white coconut milk bottle to align with the Pringles.')
                         default='Make the red pocky box lean vertically against the brown box.')
     parser.add_argument('--intrinsics_path', type=str, 
                         default="/home/ydu/haowen/real2sim/cam_utils/cam1_intrinsics.txt")
-    parser.add_argument('--output_path', type=str, default=f'output/test_moka_{int(time.time())}')
+    parser.add_argument('--extrinsics_path', type=str, 
+                        default="/home/ydu/haowen/real2sim/cam_utils/optimized_transform1_1026.txt")
+    parser.add_argument('--output_path', type=str, 
+                        default=f'outputs/1108_pivot_moka_0')
     args = parser.parse_args()
 
     import os
@@ -88,9 +91,13 @@ if __name__ == "__main__":
     depth_image = np.load(args.depth_img_path)
 
     rgb1_intrinsics, depth1_intrinsics = load_intrinsics_from_file(args.intrinsics_path)
+    extrinsics = np.loadtxt(args.extrinsics_path)
 
     # Back-project ALL points first using original intrinsics
     points = create_point_array_from_rgbd(obs_image, depth_image, rgb1_intrinsics)
+
+    points_homo = np.concatenate([points, np.ones((*points.shape[:2], 1))], axis=-1)  # (H, W, 4)
+    points = (extrinsics @ points_homo.reshape(-1, 4).T).T.reshape(*points.shape[:2], 4)[..., :3]
 
     # Now crop the image and select corresponding points
     width, height = obs_image.size
@@ -143,13 +150,16 @@ if __name__ == "__main__":
         prompts=prompts,
         debug=True)
 
-    all_object_names = []
+    all_object_names : list[str] = []
     for subtask in plan:
         if subtask['object_grasped'] != '' and subtask['object_grasped'] not in all_object_names:
             all_object_names.append(subtask['object_grasped'])
 
         if subtask['object_unattached'] != '' and subtask['object_unattached'] not in all_object_names:
             all_object_names.append(subtask['object_unattached'])
+
+    # HACK: convert to lowercase to match saved mask filenames
+    all_object_names = [t.lower() for t in all_object_names]
 
     print(all_object_names)
     process_objects(all_object_names, args.output_path, 
@@ -163,7 +173,6 @@ if __name__ == "__main__":
     for object_name in all_object_names:
         # Construct the mask file path
         mask_path = f"{output_prefix}_{object_name}.npy"
-        import pdb; pdb.set_trace()
         
         # Load the mask
         if os.path.exists(mask_path):
@@ -201,6 +210,9 @@ if __name__ == "__main__":
     keypoints_img.save(os.path.join(args.output_path, 'keypoints_visualization.png'))
 
     result = get_3d_points_from_backprojected(points_cropped, context, window_size=10)
+
+    with open(os.path.join(args.output_path, 'plan.json'), 'w') as f:
+        json.dump(result, f, default=lambda x: x.tolist(), indent=4)
 
     plot_2d_points(points_cropped, context)
 
