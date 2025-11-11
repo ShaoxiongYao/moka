@@ -11,6 +11,8 @@ if __name__ == "__main__":
     parser.add_argument("--safety_height", type=float, default=0.156)
     parser.add_argument("--grasp", type=bool, default=True,
                         help="Whether to execute the grasp action")
+    parser.add_argument("--pick_place", type=bool, default=True,
+                        help="Whether to execute pick and place action after grasp")
     args = parser.parse_args()
 
     # Load plan
@@ -23,6 +25,7 @@ if __name__ == "__main__":
     # Initialize robot
     robot = Robot(args.host)
     gripper = Gripper(args.host)
+    gripper.move(0.1, speed=0.02)
     robot.set_cartesian_impedance([10.0] * 6)
     robot.set_collision_behavior([100.0] * 7, [100.0] * 7, [100.0] * 7, [100.0] * 7,
                                   [100.0] * 6, [100.0] * 6, [100.0] * 6, [100.0] * 6)
@@ -38,12 +41,19 @@ if __name__ == "__main__":
         input("Press Enter to continue...")
         robot.move(CartesianMotion(Affine(safe_pos, quat)))
 
+    if kp["grasp"] is None:
+        safe_move(kp["target"])
+        raise ValueError("No grasp keypoint provided in the plan.")
+
     # Move to grasp
-    safe_move(kp["grasp"])
+    # grasp = (0.46, -0.19, 0.14)
+    safe_move([0.46, -0.19, 0.14])
     if args.grasp:
         input("Press Enter to execute grasp...")
-        gripper.grasp(0.003, speed=0.02, force=30.0, 
-                      epsilon_inner=0.04, epsilon_outer=0.04)
+        gripper.grasp(0.004, speed=0.02, force=20.0, 
+                      epsilon_inner=0.01, epsilon_outer=0.02)
+    safe_move(wp["post_contact"][0])
+    input()
 
     # Calculate delta
     delta = [kp["target"][i] - kp["function"][i] for i in range(3)]
@@ -57,6 +67,31 @@ if __name__ == "__main__":
         post = [wp["post_contact"][0][i] + delta[i] for i in range(3)]
         safe_move(post)
     else:
-        # Direct move with delta
-        target = [kp["function"][i] + delta[i] for i in range(3)]
-        safe_move(target)
+        # # Direct move with delta
+        # target = [kp["function"][i] + delta[i] for i in range(3)]
+        # safe_move(target)
+
+        target = [kp["grasp"][i] + delta[i] for i in range(3)]
+
+        curr_pos = robot.current_pose.end_effector_pose.translation
+        if args.pick_place:
+            # Move above target
+            above_target = [ float(curr_pos[0]), float(curr_pos[1]), 
+                             float(curr_pos[2] + 0.2) ]
+            safe_move(above_target)
+
+            # Move above target
+            above_target = [ target[0] + 0.0, target[1] + 0.0, 
+                             float(curr_pos[2] + 0.2) ]
+            safe_move(above_target)
+
+            # Move down to target
+            target = [target[0] + 0.0, target[1] + 0.0, 
+                      target[2] + 0.05]
+            safe_move(target)
+
+            input("Press Enter to release object...")
+            gripper.move(0.1, speed=0.02)
+
+            # Move back to above target
+            safe_move(above_target)
