@@ -98,6 +98,7 @@ def process_objects(all_object_names, data_dir, img_path):
         object_prompt = f"{object_name}."
         
         print(f"Processing: {object_prompt}")
+        # import pdb; pdb.set_trace()  # Debug breakpoint to inspect variables before running GSAM2
         
         # Run GSAM2 with shell=True and proper working directory
         command_gsam2 = f'python ../real2sim/run_gsam2.py \
@@ -314,6 +315,7 @@ def visualize_point_cloud_with_keypoints(points_3d_array, rgb_image, points_3d_d
     
     # List to hold all geometries to visualize
     geometries = [pcd]
+    o3d.visualization.draw_geometries_with_editing([pcd])
     
     # Add target keypoint (RED sphere)
     if points_3d_dict['keypoints_3d']['target'] is not None:

@@ -48,18 +48,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='./config/moka.yaml')
     parser.add_argument('--color_img_path', type=str, 
-                        default='/home/ydu/haowen/real2sim/data/1108_pivot_moka_0/camera1_rgb.png')
+                        default='/home/ydu/haowen/moka/outputs/0211_obstacle_moka_2/camera1_rgb.png')
     parser.add_argument('--depth_img_path', type=str, 
-                        default='/home/ydu/haowen/real2sim/data/1108_pivot_moka_0/camera1_depth.npy')
+                        default='/home/ydu/haowen/moka/outputs/0211_obstacle_moka_2/camera1_depth.npy')
     parser.add_argument('--task_instruction', type=str, 
-                        # default='Push the white coconut milk bottle to align with the Pringles.')
-                        default='Make the red pocky box lean vertically against the brown box.')
+                        default="Push the large orange bottle across the table to the bottom right side of the image while **circumventing the brown purple box**.")
+                        # default="Push the coffee beans into the purple box.")
+                        # default='Push the white coconut milk carton forward to align with the blue coconut coconut carton so they are in the same line.')
+                        # default='Make the red pocky box lean vertically against the brown box.')
+                        # default="Grasp the pink bowl at its rim and stack it with the blue bowl.")
+                        # default="Grab the free end of the rope and arrange the rope to a **U** shape.")
+                        # default="Squeeze the playdoh to a square shape with equal sides.")
     parser.add_argument('--intrinsics_path', type=str, 
                         default="/home/ydu/haowen/real2sim/cam_utils/cam1_intrinsics.txt")
     parser.add_argument('--extrinsics_path', type=str, 
-                        default="/home/ydu/haowen/real2sim/cam_utils/optimized_transform1_1026.txt")
+                        default="/home/ydu/haowen/real2sim/cam_utils/optimized_transform2_0103_1824.txt")
     parser.add_argument('--output_path', type=str, 
-                        default=f'outputs/1108_pivot_moka_0')
+                        default=f'outputs/0211_obstacle_moka_2')
     args = parser.parse_args()
 
     import os
@@ -160,6 +165,7 @@ if __name__ == "__main__":
 
     # HACK: convert to lowercase to match saved mask filenames
     all_object_names = [t.lower() for t in all_object_names]
+    all_object_names += ['table']  # always include table
 
     print(all_object_names)
     process_objects(all_object_names, args.output_path, 
@@ -205,6 +211,9 @@ if __name__ == "__main__":
         prompts=prompts, 
         debug=True
     )
+    with open(os.path.join(args.output_path, 'plan_2d.json'), 'w') as f:
+        json.dump(context, f, default=lambda x: x.tolist(), indent=4)
+        # context = json.load(f)
 
     keypoints_img = annotate_keypoints(obs_image, context)
     keypoints_img.save(os.path.join(args.output_path, 'keypoints_visualization.png'))

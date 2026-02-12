@@ -13,7 +13,7 @@ headers = {
     'Authorization': f'Bearer {api_key}'
 }
 
-DEFAULT_LLM_MODEL_NAME = 'gpt-4'
+DEFAULT_LLM_MODEL_NAME = 'gpt-5.2'
 DEFAULT_VLM_MODEL_NAME = 'gpt-4o'
 
 
