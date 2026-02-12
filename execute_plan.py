@@ -8,11 +8,14 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="172.16.0.2", help="FCI IP of the robot")
     parser.add_argument("--plan_path", type=str, required=True)
     parser.add_argument("--use_waypoints", action="store_true")
-    parser.add_argument("--safety_height", type=float, default=0.156)
-    parser.add_argument("--grasp", type=bool, default=True,
+    parser.add_argument("--safety_height", type=float, default=0.217)
+    # parser.add_argument("--safety_height", type=float, default=0.264362)
+    parser.add_argument("--grasp", type=bool, default=False,
                         help="Whether to execute the grasp action")
-    parser.add_argument("--pick_place", type=bool, default=True,
+    parser.add_argument("--pick_place", type=bool, default=False,
                         help="Whether to execute pick and place action after grasp")
+    parser.add_argument("--rope", type=bool, default=False,
+                        help="Whether the object is a rope")
     args = parser.parse_args()
 
     # Load plan
@@ -25,7 +28,7 @@ if __name__ == "__main__":
     # Initialize robot
     robot = Robot(args.host)
     gripper = Gripper(args.host)
-    gripper.move(0.1, speed=0.02)
+    gripper.move(0.001, speed=0.02)
     robot.set_cartesian_impedance([10.0] * 6)
     robot.set_collision_behavior([100.0] * 7, [100.0] * 7, [100.0] * 7, [100.0] * 7,
                                   [100.0] * 6, [100.0] * 6, [100.0] * 6, [100.0] * 6)
@@ -41,22 +44,46 @@ if __name__ == "__main__":
         input("Press Enter to continue...")
         robot.move(CartesianMotion(Affine(safe_pos, quat)))
 
-    if kp["grasp"] is None:
-        safe_move(kp["target"])
-        raise ValueError("No grasp keypoint provided in the plan.")
+    # if kp["grasp"] is None:
+    #     safe_move(kp["target"])
+    #     raise ValueError("No grasp keypoint provided in the plan.")
 
     # Move to grasp
-    # grasp = (0.46, -0.19, 0.14)
-    safe_move([0.46, -0.19, 0.14])
+    if args.rope:
+        # safe_move([0.46, -0.19, 0.14])
+        # safe_move([0.52, -0.14, 0.15])
+        # safe_move([0.51, -0.2, 0.14])
+        safe_move([0.48, -0.14, 0.15])
+    else:
+        # safe_move(kp["grasp"])
+        pass
     if args.grasp:
         input("Press Enter to execute grasp...")
         gripper.grasp(0.004, speed=0.02, force=20.0, 
                       epsilon_inner=0.01, epsilon_outer=0.02)
-    safe_move(wp["post_contact"][0])
-    input()
+        input("Press Enter to execute grasp...")
+        gripper.move(0.1, speed=0.02)
+    
+    curr_pos = robot.current_pose.end_effector_pose.translation
+    print(f"Current position after grasp: {curr_pos}")
+    # Move up after grasp
+    # above_pos = [float(curr_pos[0]), float(curr_pos[1]), float(curr_pos[2] + 0.2)]
+    # safe_move(above_pos)
+    # exit()
+    
+    if args.rope:
+        safe_move(wp["post_contact"][0])
+        gripper.move(0.1, speed=0.02)
+        input("Press Enter to finish...")
+        end_pos = robot.current_pose.end_effector_pose.translation
+        end_pos = [end_pos[0], end_pos[1], 0.4]
+        safe_move(end_pos)
 
     # Calculate delta
-    delta = [kp["target"][i] - kp["function"][i] for i in range(3)]
+    if "function" not in kp or kp["function"] is None:
+        delta = [0.0, 0.0, 0.0]
+    else:
+        delta = [kp["target"][i] - kp["function"][i] for i in range(3)]
 
     if args.use_waypoints:
         # Pre-contact waypoint
